@@ -13,7 +13,7 @@ import (
 	"strings"
 	"text/template/parse"
 
-	"internal/fmtsort"
+	"github.com/go-task/template/internal/fmtsort"
 )
 
 // maxExecDepth specifies the maximum stack depth of templates within
