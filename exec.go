@@ -226,6 +226,27 @@ func (t *Template) execute(wr io.Writer, data any) (err error) {
 	return
 }
 
+func (t *Template) ResolveRef(data any) (val any, err error) {
+	defer errRecover(&err)
+	value, ok := data.(reflect.Value)
+	if !ok {
+		value = reflect.ValueOf(data)
+	}
+	state := &state{
+		tmpl: t,
+		wr:   nil,
+		vars: []variable{{"$", value}},
+	}
+	if t.Tree == nil || t.Root == nil {
+		state.errorf("%q is an incomplete or empty template", t.Name())
+	}
+	v := state.actionValue(value, t.Root)
+	if v != zero {
+		val = v.Interface()
+	}
+	return
+}
+
 // DefinedTemplates returns a string listing the defined templates,
 // prefixed by the string "; defined templates are: ". If there are none,
 // it returns the empty string. For generating an error message here
@@ -256,6 +277,23 @@ var (
 	walkBreak    = errors.New("break")
 	walkContinue = errors.New("continue")
 )
+
+func (s *state) actionValue(dot reflect.Value, node *parse.ListNode) (val reflect.Value) {
+	s.at(node)
+	if len(node.Nodes) == 0 {
+		return zero
+	}
+	if len(node.Nodes) > 1 {
+		s.errorf("can't have more than one action when fetching a value")
+	}
+	switch node := node.Nodes[0].(type) {
+	case *parse.ActionNode:
+		return s.evalPipeline(dot, node.Pipe)
+	default:
+		s.errorf("unknown node: %s", node)
+		return zero
+	}
+}
 
 // Walk functions step through the major pieces of the template structure,
 // generating output as they go.
