@@ -230,6 +230,7 @@ func (t *Template) execute(wr io.Writer, data any) (err error) {
 // and returns the data resolved by the template.
 // If the template contains more than one node or any non-action node, an error
 // will be returned.
+// A template may be resolved safely in parallel.
 func (t *Template) Resolve(data any) (val any, err error) {
 	defer errRecover(&err)
 	value, ok := data.(reflect.Value)
