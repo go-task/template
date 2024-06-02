@@ -226,7 +226,11 @@ func (t *Template) execute(wr io.Writer, data any) (err error) {
 	return
 }
 
-func (t *Template) ResolveRef(data any) (val any, err error) {
+// Resolve applies a parsed template to the specified data object,
+// and returns the data resolved by the template.
+// If the template contains more than one node or any non-action node, an error
+// will be returned.
+func (t *Template) Resolve(data any) (val any, err error) {
 	defer errRecover(&err)
 	value, ok := data.(reflect.Value)
 	if !ok {
@@ -284,7 +288,7 @@ func (s *state) actionValue(dot reflect.Value, node *parse.ListNode) (val reflec
 		return zero
 	}
 	if len(node.Nodes) > 1 {
-		s.errorf("can't have more than one action when fetching a value")
+		s.errorf("template can only contain one action node when resolving a value")
 	}
 	switch node := node.Nodes[0].(type) {
 	case *parse.ActionNode:

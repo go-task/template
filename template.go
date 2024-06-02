@@ -5,7 +5,6 @@
 package template
 
 import (
-	"fmt"
 	"reflect"
 	"sync"
 	"text/template/parse"
@@ -42,17 +41,6 @@ func New(name string) *Template {
 	}
 	t.init()
 	return t
-}
-
-func ResolveRef(ref string, data any) (any, error) {
-	if ref == "." {
-		return data, nil
-	}
-	t, err := New("resolver").Parse(fmt.Sprintf("{{%s}}", ref))
-	if err != nil {
-		return nil, err
-	}
-	return t.ResolveRef(data)
 }
 
 // Name returns the name of the template.
