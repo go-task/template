@@ -5,10 +5,12 @@
 package fmtsort_test
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"reflect"
-	"sort"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"unsafe"
@@ -39,7 +41,7 @@ var compareTests = [][]reflect.Value{
 	ct(reflect.TypeOf(chans[0]), chans[0], chans[1], chans[2]),
 	ct(reflect.TypeOf(toy{}), toy{0, 1}, toy{0, 2}, toy{1, -1}, toy{1, 1}),
 	ct(reflect.TypeOf([2]int{}), [2]int{1, 1}, [2]int{1, 2}, [2]int{2, 0}),
-	ct(reflect.TypeOf(any(any(0))), iFace, 1, 2, 3),
+	ct(reflect.TypeOf(any(0)), iFace, 1, 2, 3),
 }
 
 var iFace any
@@ -67,10 +69,6 @@ func TestCompare(t *testing.T) {
 				switch {
 				case i == j:
 					expect = 0
-					// NaNs are tricky.
-					if typ := v0.Type(); (typ.Kind() == reflect.Float32 || typ.Kind() == reflect.Float64) && math.IsNaN(v0.Float()) {
-						expect = -1
-					}
 				case i < j:
 					expect = -1
 				case i > j:
@@ -142,13 +140,13 @@ func sprint(data any) string {
 		return "nil"
 	}
 	b := new(strings.Builder)
-	for i, key := range om.Key {
+	for i, m := range om {
 		if i > 0 {
 			b.WriteRune(' ')
 		}
-		b.WriteString(sprintKey(key))
+		b.WriteString(sprintKey(m.Key))
 		b.WriteRune(':')
-		fmt.Fprint(b, om.Value[i])
+		fmt.Fprint(b, m.Value)
 	}
 	return b.String()
 }
@@ -191,14 +189,17 @@ func sprintKey(key reflect.Value) string {
 var (
 	ints  [3]int
 	chans = makeChans()
+	pin   runtime.Pinner
 )
 
 func makeChans() []chan int {
 	cs := []chan int{make(chan int), make(chan int), make(chan int)}
 	// Order channels by address. See issue #49431.
-	// TODO: pin these pointers once pinning is available (#46787).
-	sort.Slice(cs, func(i, j int) bool {
-		return uintptr(reflect.ValueOf(cs[i]).UnsafePointer()) < uintptr(reflect.ValueOf(cs[j]).UnsafePointer())
+	for i := range cs {
+		pin.Pin(reflect.ValueOf(cs[i]).UnsafePointer())
+	}
+	slices.SortFunc(cs, func(a, b chan int) int {
+		return cmp.Compare(reflect.ValueOf(a).Pointer(), reflect.ValueOf(b).Pointer())
 	})
 	return cs
 }
